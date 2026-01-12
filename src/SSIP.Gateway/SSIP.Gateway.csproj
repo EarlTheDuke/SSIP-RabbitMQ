@@ -33,6 +33,7 @@
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     
     <!-- Validation & Utilities -->
@@ -42,6 +43,10 @@
     <!-- Health Checks -->
     <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
     <PackageReference Include="AspNetCore.HealthChecks.AzureServiceBus" Version="8.0.1" />
+    <PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" Version="8.0.2" />
+    
+    <!-- RabbitMQ (Local Message Broker) -->
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     
     <!-- OpenAPI -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />

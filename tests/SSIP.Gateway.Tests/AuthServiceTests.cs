@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using SSIP.Gateway.Authentication;
 using SSIP.Gateway.Authentication.Models;
+using Xunit;
 
 namespace SSIP.Gateway.Tests;
 

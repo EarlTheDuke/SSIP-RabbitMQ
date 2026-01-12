@@ -103,10 +103,24 @@ builder.Services.AddSingleton<ISchemaMapper, SchemaMapper>();
 builder.Services.AddScoped<IDataTransformer, JsonTransformer>();
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  EVENT BUS (Azure Service Bus)
+//  EVENT BUS (Configurable: RabbitMQ or Azure Service Bus)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-builder.Services.AddSingleton<IEventBus, AzureServiceBusEventBus>();
+var messageBrokerType = builder.Configuration["EventBus:BrokerType"]?.ToLowerInvariant() ?? "rabbitmq";
+
+if (messageBrokerType == "azureservicebus")
+{
+    // Azure Service Bus for cloud deployments
+    builder.Services.AddSingleton<IEventBus, AzureServiceBusEventBus>();
+    Log.Information("Using Azure Service Bus as message broker");
+}
+else
+{
+    // RabbitMQ for local/on-premises deployments (default)
+    builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
+    builder.Services.AddSingleton<IEventBus, RabbitMqEventBus>();
+    Log.Information("Using RabbitMQ as message broker");
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  RATE LIMITING
@@ -155,14 +169,32 @@ builder.Services.AddHttpClient("HealthCheck")
 //  HEALTH CHECKS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-builder.Services.AddHealthChecks()
+var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy())
-    .AddRedis(redisConnection ?? "localhost", name: "redis", tags: ["infrastructure"])
-    .AddAzureServiceBusTopic(
+    .AddRedis(redisConnection ?? "localhost", name: "redis", tags: ["infrastructure"]);
+
+if (messageBrokerType == "azureservicebus")
+{
+    healthChecksBuilder.AddAzureServiceBusTopic(
         builder.Configuration["EventBus:ConnectionString"] ?? "",
         "ssip-health-check",
         name: "servicebus",
         tags: ["infrastructure"]);
+}
+else
+{
+    // RabbitMQ health check
+    var rabbitMqConnection = builder.Configuration["RabbitMq:HostName"] ?? "localhost";
+    var rabbitMqPort = builder.Configuration.GetValue<int>("RabbitMq:Port", 5672);
+    var rabbitMqUser = builder.Configuration["RabbitMq:UserName"] ?? "guest";
+    var rabbitMqPass = builder.Configuration["RabbitMq:Password"] ?? "guest";
+    var rabbitMqVHost = builder.Configuration["RabbitMq:VirtualHost"] ?? "/";
+    
+    healthChecksBuilder.AddRabbitMQ(
+        rabbitConnectionString: $"amqp://{rabbitMqUser}:{rabbitMqPass}@{rabbitMqConnection}:{rabbitMqPort}{rabbitMqVHost}",
+        name: "rabbitmq",
+        tags: ["infrastructure"]);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SWAGGER / OPENAPI

@@ -1,0 +1,94 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  SSIP Gateway - Local Development Infrastructure
+#  Run: docker compose up -d
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # RabbitMQ Message Broker
+  # Management UI: http://localhost:15672 (guest/guest)
+  # AMQP Port: 5672
+  # ─────────────────────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ssip-rabbitmq
+    hostname: ssip-rabbitmq
+    ports:
+      - "5672:5672"      # AMQP protocol
+      - "15672:15672"    # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_logs:/var/log/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - ssip-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Redis Cache
+  # Connection: localhost:6379
+  # ─────────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ssip-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ssip-network
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SSIP Gateway (optional - can also run via dotnet run)
+  # Uncomment to run the gateway in Docker
+  # ─────────────────────────────────────────────────────────────────────────────
+  # ssip-gateway:
+  #   build:
+  #     context: .
+  #     dockerfile: src/SSIP.Gateway/Dockerfile
+  #   container_name: ssip-gateway
+  #   ports:
+  #     - "5000:8080"
+  #     - "5001:8081"
+  #   environment:
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #     - ASPNETCORE_HTTP_PORTS=8080
+  #     - ASPNETCORE_HTTPS_PORTS=8081
+  #     - RabbitMq__HostName=rabbitmq
+  #     - ConnectionStrings__Redis=redis:6379
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - ssip-network
+
+networks:
+  ssip-network:
+    driver: bridge
+    name: ssip-network
+
+volumes:
+  rabbitmq_data:
+    name: ssip-rabbitmq-data
+  rabbitmq_logs:
+    name: ssip-rabbitmq-logs
+  redis_data:
+    name: ssip-redis-data
